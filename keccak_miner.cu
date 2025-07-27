@@ -12,6 +12,7 @@ extern "C" __global__ void keccak_miner(
     int* found
 ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    printf("[GPU] Kernel launched! Block %d Thread %d\\n", blockIdx.x, threadIdx.x);
     uint64_t nonce = start_nonce + idx;
 
     if (*found) return;  // Skip if already found by another thread
@@ -24,6 +25,8 @@ extern "C" __global__ void keccak_miner(
     // Hash it
     uint8_t hash[32];
     keccak256(input, 64, hash);
+    printf("[GPU] Finished keccak256 for nonce: %llu\\n", nonce);
+
 
     // Print one result for debugging
     if (threadIdx.x == 0 && blockIdx.x == 0) {

@@ -101,6 +101,7 @@ def main():
         "max_value": contract.functions.max_value().call(),
     }
 
+
     prev_hash = shared_data["prev_hash"]
     if isinstance(prev_hash, bytes):
         prev_hash_bytes = prev_hash
