@@ -96,14 +96,9 @@ def main():
     }
 
     prev_hash = shared_data["prev_hash"]
-    # Fix: handle bytes prev_hash correctly
     if isinstance(prev_hash, bytes):
-        if prev_hash.startswith(b"0x"):
-            prev_hash_bytes = bytes.fromhex(prev_hash[2:].decode())
-        else:
-            prev_hash_bytes = bytes.fromhex(prev_hash.decode())
+        prev_hash_bytes = prev_hash  # Use raw bytes directly
     else:
-        # If it's already a hex string:
         prev_hash_bytes = bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
 
     max_value_int = shared_data["max_value"]
@@ -112,7 +107,6 @@ def main():
     found = ctypes.c_int(0)
     found_nonce = ctypes.c_uint64(0)
 
-    # Allocate device memory for prev_hash and max_value
     prev_hash_c = (ctypes.c_uint8 * 32)(*prev_hash_bytes)
     max_value_c = (ctypes.c_uint8 * 32)(*max_value_bytes)
 
@@ -127,22 +121,19 @@ def main():
     try:
         while True:
             found.value = 0
-            # Call CUDA kernel
             lib.keccak_miner(prev_hash_c, max_value_c, ctypes.c_uint64(start_nonce), ctypes.byref(found_nonce), ctypes.byref(found))
             if found.value:
                 print(f"[+] Found valid nonce: {found_nonce.value}")
                 nonce_bytes = nonce_to_bytes32(found_nonce.value)
                 send_mint_tx(nonce_bytes)
-                # After mint, update prev_hash and max_value from contract
+
+                # Update after mint
                 shared_data["prev_hash"] = contract.functions.prev_hash().call()
                 shared_data["max_value"] = contract.functions.max_value().call()
 
                 prev_hash = shared_data["prev_hash"]
                 if isinstance(prev_hash, bytes):
-                    if prev_hash.startswith(b"0x"):
-                        prev_hash_bytes = bytes.fromhex(prev_hash[2:].decode())
-                    else:
-                        prev_hash_bytes = bytes.fromhex(prev_hash.decode())
+                    prev_hash_bytes = prev_hash
                 else:
                     prev_hash_bytes = bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
 
