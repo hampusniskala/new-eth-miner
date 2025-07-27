@@ -97,7 +97,7 @@ def main():
 
     prev_hash = shared_data["prev_hash"]
     if isinstance(prev_hash, bytes):
-        prev_hash_bytes = prev_hash  # Use raw bytes directly
+        prev_hash_bytes = prev_hash
     else:
         prev_hash_bytes = bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
 
@@ -112,22 +112,34 @@ def main():
 
     start_nonce = 0
 
-    # Start Mint event listener thread
     listener_thread = threading.Thread(target=listen_for_mint_event, args=(shared_data,), daemon=True)
     listener_thread.start()
 
     send_test_tx()
 
+    last_report_time = time.time()
+    nonces_checked = 0
+    batch_size = BLOCK_SIZE * GRID_SIZE
+
     try:
         while True:
             found.value = 0
             lib.keccak_miner(prev_hash_c, max_value_c, ctypes.c_uint64(start_nonce), ctypes.byref(found_nonce), ctypes.byref(found))
+            nonces_checked += batch_size
+
+            # Print mining speed every 5 seconds
+            now = time.time()
+            if now - last_report_time >= 5:
+                speed = nonces_checked / (now - last_report_time)
+                print(f"[⛏️] Mining speed: {speed:,.0f} nonces/sec")
+                last_report_time = now
+                nonces_checked = 0
+
             if found.value:
                 print(f"[+] Found valid nonce: {found_nonce.value}")
                 nonce_bytes = nonce_to_bytes32(found_nonce.value)
                 send_mint_tx(nonce_bytes)
 
-                # Update after mint
                 shared_data["prev_hash"] = contract.functions.prev_hash().call()
                 shared_data["max_value"] = contract.functions.max_value().call()
 
@@ -144,12 +156,13 @@ def main():
                     max_value_c[i] = max_value_bytes[i]
                 start_nonce = found_nonce.value + 1
             else:
-                start_nonce += BLOCK_SIZE * GRID_SIZE
+                start_nonce += batch_size
 
     except KeyboardInterrupt:
         print("[*] Interrupted, stopping mining...")
         stop_flag.set()
         listener_thread.join()
+
 
 if __name__ == "__main__":
     main()
