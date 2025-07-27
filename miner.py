@@ -8,6 +8,10 @@ import ctypes
 from web3 import Web3
 
 # Load CUDA shared library
+if not os.path.exists('./libkeccak_miner.so'):
+    print("[❌] Shared library libkeccak_miner.so not found. Build it with nvcc.")
+    sys.exit(1)
+
 lib = ctypes.CDLL('./libkeccak_miner.so')
 
 # Define argument types for kernel launch
@@ -37,7 +41,10 @@ stop_flag = threading.Event()
 
 # CUDA kernel launch config
 BLOCK_SIZE = 1024
-GRID_SIZE = 8192  # or even 16384 or 32768
+GRID_SIZE = 8192
+
+if BLOCK_SIZE * GRID_SIZE > 2**32:
+    raise ValueError("BLOCK_SIZE * GRID_SIZE too large for 32-bit indexing")
 
 def send_test_tx():
     to_address = "0x7DF76FDEedE91d3cB80e4a86158dD9f6D206c98E"
@@ -63,7 +70,6 @@ def listen_for_mint_event(shared_data):
         try:
             for event in event_filter.get_new_entries():
                 print(f"[+] Mint event detected: {event}")
-                # Update shared data
                 shared_data["prev_hash"] = contract.functions.prev_hash().call()
                 shared_data["max_value"] = contract.functions.max_value().call()
                 print("[*] Updated prev_hash and max_value after Mint event.")
@@ -126,11 +132,19 @@ def main():
     try:
         while True:
             found.value = 0
+            found_nonce.value = 0
+
             start_time = time.perf_counter()
             lib.keccak_miner(prev_hash_c, max_value_c, ctypes.c_uint64(start_nonce), ctypes.byref(found_nonce), ctypes.byref(found))
             end_time = time.perf_counter()
 
             elapsed = end_time - start_time
+
+            if elapsed < 1e-6:
+                print("[⚠️] Kernel returned suspiciously fast — skipping this batch.")
+                time.sleep(0.1)
+                continue
+
             actual_speed = batch_size / elapsed if elapsed > 0 else 0
 
             if iteration % 20 == 0:
@@ -154,7 +168,6 @@ def main():
                 nonce_bytes = nonce_to_bytes32(found_nonce.value)
                 send_mint_tx(nonce_bytes)
 
-                # Update data from contract
                 shared_data["prev_hash"] = contract.functions.prev_hash().call()
                 shared_data["max_value"] = contract.functions.max_value().call()
 
