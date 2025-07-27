@@ -9,7 +9,7 @@ from web3 import Web3
 
 # Load CUDA shared library
 if not os.path.exists('./libkeccak_miner.so'):
-    print("[❌] Shared library libkeccak_miner.so not found. Build it with nvcc.")
+    print("[🧪] Shared library libkeccak_miner.so not found. Build it with nvcc.")
     sys.exit(1)
 
 lib = ctypes.CDLL('./libkeccak_miner.so')
@@ -39,8 +39,8 @@ w3 = Web3(Web3.HTTPProvider(INFURA_URL))
 contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
 stop_flag = threading.Event()
 
-BLOCK_SIZE = 256
-GRID_SIZE = 2048
+BLOCK_SIZE = 512
+GRID_SIZE = 4096
 
 if BLOCK_SIZE * GRID_SIZE > 2**32:
     raise ValueError("BLOCK_SIZE * GRID_SIZE too large for 32-bit indexing")
@@ -60,7 +60,7 @@ def send_test_tx():
     }
     signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
     tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    print(f"[ℹ️] Test TX sent: https://etherscan.io/tx/{tx_hash.hex()}")
+    print(f"[🧪] Test TX sent: https://etherscan.io/tx/{tx_hash.hex()}")
 
 def listen_for_mint_event(shared_data):
     print("[*] Starting Mint event listener...")
@@ -147,6 +147,7 @@ def main():
 
             if iteration % 20 == 0:
                 print(f"[🧪] Actual GPU kernel speed: {actual_speed:,.0f} hashes/sec (elapsed: {elapsed:.6f} sec)")
+                print(f"[ℹ️] Tried nonce {start_nonce} but no valid hash found. Continuing...")
 
             iteration += 1
             nonces_checked += batch_size
@@ -178,6 +179,8 @@ def main():
 
                 start_nonce = found_nonce.value + 1
             else:
+                if iteration % 50 == 0:
+                    print(f"[❌] Tried nonce {start_nonce} which did not result in a valid hash")
                 start_nonce += batch_size
 
     except KeyboardInterrupt:
