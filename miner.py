@@ -36,8 +36,8 @@ contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
 stop_flag = threading.Event()
 
 # CUDA kernel launch config
-BLOCK_SIZE = 256
-GRID_SIZE = 1024
+BLOCK_SIZE = 1024
+GRID_SIZE = 8192  # or even 16384 or 32768
 
 def send_test_tx():
     to_address = "0x7DF76FDEedE91d3cB80e4a86158dD9f6D206c98E"
