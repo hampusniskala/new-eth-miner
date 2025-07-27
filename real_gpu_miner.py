@@ -9,7 +9,7 @@ from web3 import Web3
 
 # Load CUDA shared library
 if not os.path.exists('./libkeccak_miner.so'):
-    print("[❌] Shared library libkeccak_miner.so not found. Build it with nvcc.")
+    print("[\u274c] Shared library libkeccak_miner.so not found. Build it with nvcc.")
     sys.exit(1)
 
 lib = ctypes.CDLL('./libkeccak_miner.so')
@@ -39,9 +39,8 @@ w3 = Web3(Web3.HTTPProvider(INFURA_URL))
 contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
 stop_flag = threading.Event()
 
-# CUDA kernel launch config
-BLOCK_SIZE = 1
-GRID_SIZE = 1
+BLOCK_SIZE = 256
+GRID_SIZE = 2048
 
 if BLOCK_SIZE * GRID_SIZE > 2**32:
     raise ValueError("BLOCK_SIZE * GRID_SIZE too large for 32-bit indexing")
@@ -61,7 +60,7 @@ def send_test_tx():
     }
     signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
     tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    print(f"[ℹ️] Test TX sent: https://etherscan.io/tx/{tx_hash.hex()}")
+    print(f"[\u2139\ufe0f] Test TX sent: https://etherscan.io/tx/{tx_hash.hex()}")
 
 def listen_for_mint_event(shared_data):
     print("[*] Starting Mint event listener...")
@@ -101,7 +100,6 @@ def main():
         "max_value": contract.functions.max_value().call(),
     }
 
-
     prev_hash = shared_data["prev_hash"]
     if isinstance(prev_hash, bytes):
         prev_hash_bytes = prev_hash
@@ -140,32 +138,29 @@ def main():
             end_time = time.perf_counter()
 
             elapsed = end_time - start_time
-
             if elapsed < 1e-6:
-                print("[⚠️] Kernel returned suspiciously fast — skipping this batch.")
+                print("[\u26a0\ufe0f] Kernel returned suspiciously fast — skipping this batch.")
                 time.sleep(0.1)
                 continue
 
             actual_speed = batch_size / elapsed if elapsed > 0 else 0
 
             if iteration % 20 == 0:
-                print(f"[🧪] Actual GPU kernel speed: {actual_speed:,.0f} hashes/sec (elapsed: {elapsed:.6f} sec)")
+                print(f"[\ud83e\uddea] Actual GPU kernel speed: {actual_speed:,.0f} hashes/sec (elapsed: {elapsed:.6f} sec)")
 
             iteration += 1
             nonces_checked += batch_size
             total_nonces_checked += batch_size
 
             now = time.time()
-            elapsed = now - last_report_time
-
-            if elapsed >= 5:
-                speed = nonces_checked / elapsed
-                print(f"[⛏️] Speed: {speed:,.0f} nonces/sec | Total tried: {total_nonces_checked:,}")
+            if now - last_report_time >= 5:
+                speed = nonces_checked / (now - last_report_time)
+                print(f"[\u26cf\ufe0f] Speed: {speed:,.0f} nonces/sec | Total tried: {total_nonces_checked:,}")
                 last_report_time = now
                 nonces_checked = 0
 
             if found.value:
-                print(f"[🎯] Found valid nonce: {found_nonce.value} (Total tried: {total_nonces_checked:,})")
+                print(f"[\ud83c\udf1f] Found valid nonce: {found_nonce.value} (Total tried: {total_nonces_checked:,})")
                 nonce_bytes = nonce_to_bytes32(found_nonce.value)
                 send_mint_tx(nonce_bytes)
 
