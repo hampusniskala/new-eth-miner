@@ -104,23 +104,30 @@ __device__ int check_max_value(const uint8_t *hash, const uint8_t *max_value) {
 // If hash <= max_value, write nonce to output and set *found flag to 1
 extern "C"
 __global__ void keccak_miner(const uint8_t *prev_hash, const uint8_t *max_value, uint64_t start_nonce, uint64_t *found_nonce, int *found) {
-  if (*found) return;  // early exit if found
+  if (atomicAdd(found, 0) != 0) return;  // early exit if already found (atomic read)
 
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   uint64_t nonce = start_nonce + idx;
 
   uint8_t input[64];
-  // Copy nonce (big endian) into first 32 bytes (zero padded except last 8 bytes)
+  // Zero padding first 24 bytes
   for (int i = 0; i < 24; i++) input[i] = 0;
-  for (int i = 0; i < 8; i++) input[31 - i] = (nonce >> (8 * i)) & 0xFF;
+  // Copy nonce (big endian) into input[8..31] (last 8 bytes of nonce)
+  for (int i = 0; i < 8; i++) {
+    input[31 - i] = (nonce >> (8 * i)) & 0xFF;
+  }
   // Copy prev_hash (32 bytes) after nonce
-  for (int i = 0; i < 32; i++) input[32 + i] = prev_hash[i];
+  for (int i = 0; i < 32; i++) {
+    input[32 + i] = prev_hash[i];
+  }
 
   uint8_t hash[32];
   keccak256(input, hash);
 
   if (check_max_value(hash, max_value)) {
-    *found_nonce = nonce;
-    *found = 1;
+    // Use atomic operations to avoid race conditions
+    if (atomicExch(found, 1) == 0) {
+      *found_nonce = nonce;
+    }
   }
 }
