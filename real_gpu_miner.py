@@ -153,7 +153,7 @@ def main():
 
             actual_speed = batch_size / elapsed if elapsed > 0 else 0
 
-            if iteration % 20 == 0:
+            if iteration % 80000 == 0:
                 print(f"[🧪] Actual GPU kernel speed: {actual_speed:,.0f} hashes/sec (elapsed: {elapsed:.6f} sec)")
 
             if iteration % 2000 == 0:
