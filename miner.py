@@ -95,7 +95,17 @@ def main():
         "max_value": contract.functions.max_value().call(),
     }
 
-    prev_hash_bytes = bytes.fromhex(shared_data["prev_hash"][2:] if shared_data["prev_hash"].startswith("0x") else shared_data["prev_hash"])
+    prev_hash = shared_data["prev_hash"]
+    # Fix: handle bytes prev_hash correctly
+    if isinstance(prev_hash, bytes):
+        if prev_hash.startswith(b"0x"):
+            prev_hash_bytes = bytes.fromhex(prev_hash[2:].decode())
+        else:
+            prev_hash_bytes = bytes.fromhex(prev_hash.decode())
+    else:
+        # If it's already a hex string:
+        prev_hash_bytes = bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
+
     max_value_int = shared_data["max_value"]
     max_value_bytes = max_value_int.to_bytes(32, 'big')
 
@@ -126,7 +136,16 @@ def main():
                 # After mint, update prev_hash and max_value from contract
                 shared_data["prev_hash"] = contract.functions.prev_hash().call()
                 shared_data["max_value"] = contract.functions.max_value().call()
-                prev_hash_bytes = bytes.fromhex(shared_data["prev_hash"][2:] if shared_data["prev_hash"].startswith("0x") else shared_data["prev_hash"])
+
+                prev_hash = shared_data["prev_hash"]
+                if isinstance(prev_hash, bytes):
+                    if prev_hash.startswith(b"0x"):
+                        prev_hash_bytes = bytes.fromhex(prev_hash[2:].decode())
+                    else:
+                        prev_hash_bytes = bytes.fromhex(prev_hash.decode())
+                else:
+                    prev_hash_bytes = bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
+
                 max_value_int = shared_data["max_value"]
                 max_value_bytes = max_value_int.to_bytes(32, 'big')
                 for i in range(32):
