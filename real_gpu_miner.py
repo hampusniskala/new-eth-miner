@@ -6,6 +6,7 @@ import signal
 import numpy as np
 import ctypes
 from web3 import Web3
+import binascii
 
 # Load CUDA shared library
 if not os.path.exists('./libkeccak_miner.so'):
@@ -94,6 +95,13 @@ def send_mint_tx(value_bytes):
 def nonce_to_bytes32(nonce):
     return nonce.to_bytes(32, 'big')
 
+def keccak256_hash(prev_hash_bytes, nonce):
+    import sha3
+    k = sha3.keccak_256()
+    input_bytes = prev_hash_bytes + nonce.to_bytes(8, 'big')
+    k.update(input_bytes)
+    return k.digest()
+
 def main():
     shared_data = {
         "prev_hash": contract.functions.prev_hash().call(),
@@ -147,7 +155,12 @@ def main():
 
             if iteration % 20 == 0:
                 print(f"[🧪] Actual GPU kernel speed: {actual_speed:,.0f} hashes/sec (elapsed: {elapsed:.6f} sec)")
-                print(f"[ℹ️] Tried nonce {start_nonce} but no valid hash found. Continuing...")
+
+            if iteration % 2000 == 0:
+                sample_nonce = start_nonce + batch_size // 2
+                sample_hash = keccak256_hash(prev_hash_bytes, sample_nonce)
+                sample_hash_int = int.from_bytes(sample_hash, 'big')
+                print(f"[🔎] Tried Nonce {sample_nonce} resulted in {sample_hash_int} — not valid (max {max_value_int})")
 
             iteration += 1
             nonces_checked += batch_size
@@ -179,8 +192,6 @@ def main():
 
                 start_nonce = found_nonce.value + 1
             else:
-                if iteration % 50 == 0:
-                    print(f"[❌] Tried nonce {start_nonce} which did not result in a valid hash")
                 start_nonce += batch_size
 
     except KeyboardInterrupt:
