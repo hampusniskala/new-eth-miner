@@ -40,8 +40,8 @@ contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
 stop_flag = threading.Event()
 
 # CUDA kernel launch config
-BLOCK_SIZE = 1024
-GRID_SIZE = 8192
+BLOCK_SIZE = 1
+GRID_SIZE = 1
 
 if BLOCK_SIZE * GRID_SIZE > 2**32:
     raise ValueError("BLOCK_SIZE * GRID_SIZE too large for 32-bit indexing")
