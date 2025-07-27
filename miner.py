@@ -121,20 +121,22 @@ def main():
     nonces_checked = 0
     total_nonces_checked = 0
     batch_size = BLOCK_SIZE * GRID_SIZE
+    iteration = 0
 
     try:
         while True:
             found.value = 0
             start_time = time.perf_counter()
-	    lib.keccak_miner(prev_hash_c, max_value_c, ctypes.c_uint64(start_nonce), ctypes.byref(found_nonce), ctypes.byref(found))
-	    end_time = time.perf_counter()
+            lib.keccak_miner(prev_hash_c, max_value_c, ctypes.c_uint64(start_nonce), ctypes.byref(found_nonce), ctypes.byref(found))
+            end_time = time.perf_counter()
 
-	    elapsed = end_time - start_time
-	    actual_speed = batch_size / elapsed if elapsed > 0 else 0
-	    if iteration % 20 == 0:
-    	    	print(f"[🧪] Actual GPU kernel speed: {actual_speed:,.0f} hashes/sec (elapsed: {elapsed:.6f} sec)")
+            elapsed = end_time - start_time
+            actual_speed = batch_size / elapsed if elapsed > 0 else 0
 
+            if iteration % 20 == 0:
+                print(f"[🧪] Actual GPU kernel speed: {actual_speed:,.0f} hashes/sec (elapsed: {elapsed:.6f} sec)")
 
+            iteration += 1
             nonces_checked += batch_size
             total_nonces_checked += batch_size
 
@@ -174,7 +176,6 @@ def main():
         stop_flag.set()
         listener_thread.join()
         print(f"[*] Total nonces tried: {total_nonces_checked:,}")
-
 
 if __name__ == "__main__":
     main()
