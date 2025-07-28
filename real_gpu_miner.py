@@ -5,8 +5,9 @@ import threading
 import signal
 import numpy as np
 import ctypes
-from web3 import Web3
 import binascii
+import random
+from web3 import Web3
 
 # Load CUDA shared library
 if not os.path.exists('./libkeccak_miner.so'):
@@ -108,23 +109,8 @@ def main():
         "max_value": contract.functions.max_value().call(),
     }
 
-    prev_hash = shared_data["prev_hash"]
-    if isinstance(prev_hash, bytes):
-        prev_hash_bytes = prev_hash
-    else:
-        prev_hash_bytes = bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
-
-    max_value_int = shared_data["max_value"]
-    max_value_bytes = max_value_int.to_bytes(32, 'big')
-
     found = ctypes.c_int(0)
     found_nonce = ctypes.c_uint64(0)
-
-    prev_hash_c = (ctypes.c_uint8 * 32)(*prev_hash_bytes)
-    max_value_c = (ctypes.c_uint8 * 32)(*max_value_bytes)
-
-    start_nonce = 0
-    last_sync_time = time.time()
 
     listener_thread = threading.Thread(target=listen_for_mint_event, args=(shared_data,), daemon=True)
     listener_thread.start()
@@ -139,26 +125,22 @@ def main():
 
     try:
         while True:
+            prev_hash = shared_data["prev_hash"]
+            if isinstance(prev_hash, bytes):
+                prev_hash_bytes = prev_hash
+            else:
+                prev_hash_bytes = bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
+
+            max_value_int = shared_data["max_value"]
+            max_value_bytes = max_value_int.to_bytes(32, 'big')
+
+            prev_hash_c = (ctypes.c_uint8 * 32)(*prev_hash_bytes)
+            max_value_c = (ctypes.c_uint8 * 32)(*max_value_bytes)
+
             found.value = 0
             found_nonce.value = 0
 
-            # Periodic sync from listener thread
-            if time.time() - last_sync_time > 10:
-                if shared_data["prev_hash"] != prev_hash:
-                    print("[🔁] Detected new prev_hash from listener thread. Reloading.")
-                    prev_hash = shared_data["prev_hash"]
-                    prev_hash_bytes = prev_hash if isinstance(prev_hash, bytes) else bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
-                    for i in range(32):
-                        prev_hash_c[i] = prev_hash_bytes[i]
-
-                if shared_data["max_value"] != max_value_int:
-                    print("[🔁] Detected new max_value from listener thread. Reloading.")
-                    max_value_int = shared_data["max_value"]
-                    max_value_bytes = max_value_int.to_bytes(32, 'big')
-                    for i in range(32):
-                        max_value_c[i] = max_value_bytes[i]
-
-                last_sync_time = time.time()
+            start_nonce = random.getrandbits(64)
 
             start_time = time.perf_counter()
             lib.keccak_miner(prev_hash_c, max_value_c, ctypes.c_uint64(start_nonce), ctypes.byref(found_nonce), ctypes.byref(found))
@@ -200,21 +182,9 @@ def main():
                 nonce_bytes = nonce_to_bytes32(found_nonce.value)
                 send_mint_tx(nonce_bytes)
 
-                shared_data["prev_hash"] = contract.functions.prev_hash().call()
-                shared_data["max_value"] = contract.functions.max_value().call()
-
-                prev_hash = shared_data["prev_hash"]
-                prev_hash_bytes = prev_hash if isinstance(prev_hash, bytes) else bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
-                max_value_int = shared_data["max_value"]
-                max_value_bytes = max_value_int.to_bytes(32, 'big')
-
-                for i in range(32):
-                    prev_hash_c[i] = prev_hash_bytes[i]
-                    max_value_c[i] = max_value_bytes[i]
-
                 start_nonce = found_nonce.value + 1
             else:
-                start_nonce += batch_size
+                pass  # do nothing, next iteration picks new random nonce
 
     except KeyboardInterrupt:
         print("\n[*] Interrupted by user. Stopping mining...")
