@@ -6,6 +6,7 @@ import ctypes
 import binascii
 import random
 from web3 import Web3
+import sha3
 
 lib = ctypes.CDLL('./libkeccak_miner.so')
 
@@ -40,11 +41,16 @@ BATCH_SIZE = BLOCK_SIZE * GRID_SIZE
 def generate_candidate_values():
     batch = bytearray(BATCH_SIZE * 32)
     for i in range(BATCH_SIZE):
-        prefix = os.urandom(13)  # 13 bytes of randomness
-        zeros = b'\x00' * 19     # 19 bytes = 38 hex digits = 152 bits
+        prefix = os.urandom(13)
+        zeros = b'\x00' * 19
         full = prefix + zeros
         batch[i*32:(i+1)*32] = full
     return batch
+
+def keccak256_hash(value, prev_hash):
+    k = sha3.keccak_256()
+    k.update(value + prev_hash)
+    return k.digest()
 
 def send_mint_tx(value_bytes):
     try:
@@ -94,12 +100,16 @@ def main():
         lib.keccak_miner(values_c, prev_hash_c, max_value_c, ctypes.byref(found_index), ctypes.byref(found))
         end = time.time()
 
-        speed = BATCH_SIZE / (end - start)
-        print(f"[⛏️] Speed: {speed:,.0f} hashes/sec | Total tried: {total_tries:,}")
+        elapsed = end - start
+        speed = BATCH_SIZE / elapsed
+        print(f"[⛏️] Speed: {speed:,.0f} hashes/sec | Total tried: {total_tries:,} | Elapsed: {elapsed:.6f} sec")
 
         if iteration % 5 == 0:
             sample = values_batch[0:32]
-            print(f"[📡] Sample value={sample.hex()} => max={max_value}")
+            sample_hash = keccak256_hash(sample, prev_hash_bytes)
+            sample_hash_int = int.from_bytes(sample_hash, 'big')
+            is_valid = sample_hash_int <= max_value
+            print(f"[📡] Sample value={sample.hex()} => hash={sample_hash_int} (valid={is_valid}) max={max_value}")
 
         if iteration % 10 == 0:
             prev_hash_hex = bytes(prev_hash_c).hex()
