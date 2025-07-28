@@ -40,8 +40,8 @@ BATCH_SIZE = BLOCK_SIZE * GRID_SIZE
 def generate_candidate_values():
     batch = bytearray(BATCH_SIZE * 32)
     for i in range(BATCH_SIZE):
-        prefix = os.urandom(16)
-        zeros = b'\x00' * 16
+        prefix = os.urandom(13)  # 13 bytes of randomness
+        zeros = b'\x00' * 19     # 19 bytes = 38 hex digits = 152 bits
         full = prefix + zeros
         batch[i*32:(i+1)*32] = full
     return batch
