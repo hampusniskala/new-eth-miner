@@ -8,6 +8,7 @@ import ctypes
 import binascii
 import random
 from web3 import Web3
+from secrets import randbits
 
 # Load CUDA shared library
 if not os.path.exists('./libkeccak_miner.so'):
@@ -102,6 +103,9 @@ def keccak256_hash(prev_hash_bytes, nonce):
     k.update(input_bytes)
     return k.digest()
 
+def generate_high_entropy_nonce():
+    return randbits(random.randint(200, 255))
+
 def main():
     shared_data = {
         "prev_hash": contract.functions.prev_hash().call(),
@@ -124,8 +128,8 @@ def main():
 
     try:
         while True:
-            prev_hash = contract.functions.prev_hash().call()
-            max_value = contract.functions.max_value().call()
+            prev_hash = shared_data["prev_hash"]
+            max_value = shared_data["max_value"]
 
             if isinstance(prev_hash, bytes):
                 prev_hash_bytes = prev_hash
@@ -140,7 +144,7 @@ def main():
             found.value = 0
             found_nonce.value = 0
 
-            start_nonce = random.getrandbits(64) | (1 << 63)
+            start_nonce = generate_high_entropy_nonce() & ((1 << 64) - 1)
 
             start_time = time.perf_counter()
             lib.keccak_miner(prev_hash_c, max_value_c, ctypes.c_uint64(start_nonce), ctypes.byref(found_nonce), ctypes.byref(found))
