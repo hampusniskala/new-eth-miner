@@ -97,9 +97,12 @@ def main():
         speed = BATCH_SIZE / (end - start)
         print(f"[⛏️] Speed: {speed:,.0f} hashes/sec | Total tried: {total_tries:,}")
 
-        if iteration % 1000 == 0:
+        if iteration % 5 == 0:
             sample = values_batch[0:32]
             print(f"[📡] Sample value={sample.hex()} => max={max_value}")
+
+        if iteration % 10 == 0:
+            print(f"[📡] Prev_hash={prev_hash_c}")
 
         if found.value:
             offset = found_index.value * 32
