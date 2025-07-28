@@ -40,16 +40,29 @@ BATCH_SIZE = BLOCK_SIZE * GRID_SIZE
 
 def generate_candidate_values():
     batch = bytearray(BATCH_SIZE * 32)
-    middle_candidates = [
-        b'\x87\x68', b'\x20\x40', b'\x19\x46', b'\x44\x00', b'\x87\xa6', b'\x6b\x39'
-    ]
     for i in range(BATCH_SIZE):
-        prefix = os.urandom(12)  # Random prefix (96 bits)
-        middle = random.choice(middle_candidates) + os.urandom(2)  # Patterned middle (4 bytes)
-        zeros = b'\x00' * 16     # Pad to total 32 bytes (last 16 zeroes)
-        full = prefix + middle + zeros
+        # Structured prefix (bytes like 0x00, 0xe8, 0x76, 0x13, 0x61, 0x87)
+        prefix = bytearray([
+            random.choice([0x00, 0x20, 0x40, 0x60, 0x80, 0xe8]),
+            random.randint(0x60, 0x87),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff),
+            random.choice([0x87, 0x68, 0x76]),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff)
+        ])
+        # Remaining zero padding to make 32 bytes
+        zeros = b'\x00' * (32 - len(prefix))
+        full = prefix + zeros
         batch[i*32:(i+1)*32] = full
     return batch
+
 
 
 def keccak256_hash(value, prev_hash):
