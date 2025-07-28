@@ -102,7 +102,8 @@ def main():
             print(f"[📡] Sample value={sample.hex()} => max={max_value}")
 
         if iteration % 10 == 0:
-            print(f"[📡] Prev_hash={prev_hash_c}")
+            prev_hash_hex = bytes(prev_hash_c).hex()
+            print(f"[📡] Prev_hash={prev_hash_hex}")
 
         if found.value:
             offset = found_index.value * 32
