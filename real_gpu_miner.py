@@ -122,8 +122,8 @@ def main():
         end = time.time()
 
         elapsed = end - start
-        speed = BATCH_SIZE / elapsed
-        print(f"[⛏️] Speed: {speed:,.0f} hashes/sec | Total tried: {total_tries:,} | Elapsed: {elapsed:.6f} sec")
+
+        print(f"[⛏️] Total tried: {total_tries:,} | Elapsed: {elapsed:.6f} sec")
 
         if iteration % 5 == 0:
             sample = values_batch[0:32]
