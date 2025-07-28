@@ -69,27 +69,48 @@ def send_mint_tx(value_bytes):
     except Exception as e:
         print(f"[!] Error sending mint TX: {e}")
 
+def listen_for_mints(shared_data):
+    print("[*] Starting Mint event listener...")
+    event_filter = contract.events.Mint.create_filter(from_block='latest')
+    while not stop_flag.is_set():
+        try:
+            for event in event_filter.get_new_entries():
+                print(f"[+] Mint detected: {event}")
+                shared_data["prev_hash"] = contract.functions.prev_hash().call()
+                shared_data["max_value"] = contract.functions.max_value().call()
+                print("[*] Updated prev_hash and max_value.")
+        except Exception as e:
+            print(f"[!] Error in Mint listener: {e}")
+        time.sleep(3)
+
 def main():
     try:
-        prev_hash = contract.functions.prev_hash().call()
-        max_value = contract.functions.max_value().call()
+        shared_data = {
+            "prev_hash": contract.functions.prev_hash().call(),
+            "max_value": contract.functions.max_value().call(),
+        }
     except Exception as e:
-        print(f"[!] Web3 connection/init failed: {e}")
+        print(f"[!] Web3 init failed: {e}")
         sys.exit(1)
 
-    prev_hash_bytes = prev_hash if isinstance(prev_hash, bytes) else bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
-    max_value_bytes = max_value.to_bytes(32, 'big')
-
-    prev_hash_c = (ctypes.c_uint8 * 32)(*prev_hash_bytes)
-    max_value_c = (ctypes.c_uint8 * 32)(*max_value_bytes)
+    listener_thread = threading.Thread(target=listen_for_mints, args=(shared_data,), daemon=True)
+    listener_thread.start()
 
     found = ctypes.c_int(0)
     found_index = ctypes.c_uint64(0)
-
     total_tries = 0
     iteration = 0
 
     while True:
+        prev_hash = shared_data["prev_hash"]
+        max_value = shared_data["max_value"]
+
+        prev_hash_bytes = prev_hash if isinstance(prev_hash, bytes) else bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
+        max_value_bytes = max_value.to_bytes(32, 'big')
+
+        prev_hash_c = (ctypes.c_uint8 * 32)(*prev_hash_bytes)
+        max_value_c = (ctypes.c_uint8 * 32)(*max_value_bytes)
+
         values_batch = generate_candidate_values()
         values_c = (ctypes.c_uint8 * (32 * BATCH_SIZE)).from_buffer_copy(values_batch)
 
@@ -112,26 +133,13 @@ def main():
             print(f"[📡] Sample value={sample.hex()} => hash={sample_hash_int} (valid={is_valid}) max={max_value}")
 
         if iteration % 10 == 0:
-            prev_hash_hex = bytes(prev_hash_c).hex()
-            print(f"[📡] Prev_hash={prev_hash_hex}")
+            print(f"[📡] Prev_hash={prev_hash_bytes.hex()}")
 
         if found.value:
             offset = found_index.value * 32
             winning_value = values_batch[offset:offset+32]
             print(f"[🌟] Found winning value: {winning_value.hex()}")
             send_mint_tx(winning_value)
-
-            try:
-                prev_hash = contract.functions.prev_hash().call()
-                max_value = contract.functions.max_value().call()
-                prev_hash_bytes = prev_hash if isinstance(prev_hash, bytes) else bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
-                max_value_bytes = max_value.to_bytes(32, 'big')
-
-                for i in range(32):
-                    prev_hash_c[i] = prev_hash_bytes[i]
-                    max_value_c[i] = max_value_bytes[i]
-            except Exception as e:
-                print(f"[!] Error updating state after mint: {e}")
 
         total_tries += BATCH_SIZE
         iteration += 1
