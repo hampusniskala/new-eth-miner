@@ -102,7 +102,7 @@ def main():
 
     listener_thread = threading.Thread(target=listen_for_mint_event, args=(shared_data,), daemon=True)
     listener_thread.start()
-    send_test_tx()
+    #send_test_tx()
 
     total_checked = 0
     last_report_time = time.time()
