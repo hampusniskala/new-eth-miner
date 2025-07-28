@@ -117,20 +117,18 @@ def main():
         found.value = 0
         found_index.value = 0
 
-        start = time.time()
+
         lib.keccak_miner(values_c, prev_hash_c, max_value_c, ctypes.byref(found_index), ctypes.byref(found))
-        end = time.time()
 
-        elapsed = end - start
-
-        print(f"[⛏️] Total tried: {total_tries:,} | Elapsed: {elapsed:.6f} sec")
+        print(f"[⛏️] Total tried: {total_tries:,}")
 
         if iteration % 5 == 0:
             sample = values_batch[0:32]
             sample_hash = keccak256_hash(sample, prev_hash_bytes)
             sample_hash_int = int.from_bytes(sample_hash, 'big')
             is_valid = sample_hash_int <= max_value
-            print(f"[📡] Sample value={sample.hex()} => hash={sample_hash_int} (valid={is_valid}) max={max_value}")
+            percentage_of_max = (sample_hash_int / max_value) * 100
+            print(f"[📡] Sample value={sample.hex()} => hash={sample_hash_int} ({percentage_of_max:.2f}% of max) (valid={is_valid}) max={max_value}")
 
         if iteration % 10 == 0:
             print(f"[📡] Prev_hash={prev_hash_bytes.hex()}")
