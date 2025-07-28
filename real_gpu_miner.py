@@ -74,10 +74,9 @@ def listen_for_mint_event(shared_data):
                 shared_data["prev_hash"] = contract.functions.prev_hash().call()
                 shared_data["max_value"] = contract.functions.max_value().call()
                 print("[*] Updated prev_hash and max_value after Mint event.")
-            time.sleep(2)
         except Exception as e:
             print(f"[!] Error in Mint event listener: {e}")
-            time.sleep(5)
+        time.sleep(2)
 
 def send_mint_tx(value_bytes):
     nonce = w3.eth.get_transaction_count(ADDRESS, "pending")
@@ -125,14 +124,15 @@ def main():
 
     try:
         while True:
-            prev_hash = shared_data["prev_hash"]
+            prev_hash = contract.functions.prev_hash().call()
+            max_value = contract.functions.max_value().call()
+
             if isinstance(prev_hash, bytes):
                 prev_hash_bytes = prev_hash
             else:
                 prev_hash_bytes = bytes.fromhex(prev_hash[2:] if prev_hash.startswith("0x") else prev_hash)
 
-            max_value_int = shared_data["max_value"]
-            max_value_bytes = max_value_int.to_bytes(32, 'big')
+            max_value_bytes = max_value.to_bytes(32, 'big')
 
             prev_hash_c = (ctypes.c_uint8 * 32)(*prev_hash_bytes)
             max_value_c = (ctypes.c_uint8 * 32)(*max_value_bytes)
@@ -140,7 +140,7 @@ def main():
             found.value = 0
             found_nonce.value = 0
 
-            start_nonce = random.getrandbits(64)
+            start_nonce = random.getrandbits(64) | (1 << 63)
 
             start_time = time.perf_counter()
             lib.keccak_miner(prev_hash_c, max_value_c, ctypes.c_uint64(start_nonce), ctypes.byref(found_nonce), ctypes.byref(found))
@@ -161,7 +161,7 @@ def main():
                 sample_nonce = start_nonce + batch_size // 2
                 sample_hash = keccak256_hash(prev_hash_bytes, sample_nonce)
                 sample_hash_int = int.from_bytes(sample_hash, 'big')
-                print(f"[🔎] Tried Nonce {sample_nonce} resulted in {sample_hash_int} — not valid (max {max_value_int})")
+                print(f"[🔎] Tried Nonce {sample_nonce} resulted in {sample_hash_int} — not valid (max {max_value})")
 
             if iteration % 10000 == 0:
                 print(f"[📡] Current prev_hash: {binascii.hexlify(prev_hash_bytes).decode()}")
@@ -181,10 +181,6 @@ def main():
                 print(f"[🌟] Found valid nonce: {found_nonce.value} (Total tried: {total_nonces_checked:,})")
                 nonce_bytes = nonce_to_bytes32(found_nonce.value)
                 send_mint_tx(nonce_bytes)
-
-                start_nonce = found_nonce.value + 1
-            else:
-                pass  # do nothing, next iteration picks new random nonce
 
     except KeyboardInterrupt:
         print("\n[*] Interrupted by user. Stopping mining...")
