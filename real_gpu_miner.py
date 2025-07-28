@@ -127,7 +127,7 @@ def main():
 
         print(f"[⛏️] Total tried: {total_tries:,}")
 
-        if iteration % 5 == 0:
+        if iteration % 2 == 0:
             sample = values_batch[0:32]
             sample_hash = keccak256_hash(sample, prev_hash_bytes)
             sample_hash_int = int.from_bytes(sample_hash, 'big')
@@ -135,7 +135,7 @@ def main():
             percentage_of_max = (sample_hash_int / max_value) * 100
             print(f"[📡] Sample value={sample.hex()} => hash={sample_hash_int} ({percentage_of_max:.2f}% of max) (valid={is_valid}) max={max_value}")
 
-        if iteration % 10 == 0:
+        if iteration % 5 == 0:
             print(f"[📡] Prev_hash={prev_hash_bytes.hex()}")
 
         if found.value:
