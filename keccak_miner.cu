@@ -5,9 +5,7 @@
 #include <cuda_runtime.h>
 #include "keccak.cuh"
 
-extern "C" {
-
-// CUDA kernel that uses keccak256
+// ==== GPU Kernel ====
 __global__ void keccak_kernel(const uint8_t* input, size_t length, uint8_t* output) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx == 0) {
@@ -15,8 +13,8 @@ __global__ void keccak_kernel(const uint8_t* input, size_t length, uint8_t* outp
     }
 }
 
-// C-callable launch wrapper
-void launch_keccak(const uint8_t* input, size_t length, uint8_t* output) {
+// ==== C-compatible Host Function (to be called from Python) ====
+extern "C" void keccak_miner(const uint8_t* input, size_t length, uint8_t* output) {
     uint8_t *d_input, *d_output;
     cudaMalloc(&d_input, length);
     cudaMemcpy(d_input, input, length, cudaMemcpyHostToDevice);
@@ -30,9 +28,7 @@ void launch_keccak(const uint8_t* input, size_t length, uint8_t* output) {
     cudaFree(d_output);
 }
 
-} // extern "C"
-
-// ========== REAL keccak256 GPU implementation ==========
+// ==== Real Keccak256 Implementation ====
 
 __device__ __constant__ uint64_t keccakf_rndc[24] = {
     0x0000000000000001ULL, 0x0000000000008082ULL, 0x800000000000808aULL,
