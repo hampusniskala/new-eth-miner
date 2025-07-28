@@ -99,7 +99,8 @@ def nonce_to_bytes32(nonce):
 def keccak256_hash(prev_hash_bytes, nonce):
     import sha3
     k = sha3.keccak_256()
-    input_bytes = prev_hash_bytes + nonce.to_bytes(8, 'big')
+    nonce_bytes = nonce.to_bytes(32, 'big')
+    input_bytes = nonce_bytes + prev_hash_bytes
     k.update(input_bytes)
     return k.digest()
 
