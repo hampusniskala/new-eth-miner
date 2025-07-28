@@ -13,3 +13,6 @@ tmux new -s miningsession
 python3 real_gpu_miner.py
 
 tmux attach -t miningsession
+
+
+
