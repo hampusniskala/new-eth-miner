@@ -150,7 +150,7 @@ extern "C" void keccak_miner(
     cudaMemcpy(d_found_flag, found_flag, sizeof(int), cudaMemcpyHostToDevice);
 
     dim3 blockSize(512);
-    dim3 gridSize(4096);
+    dim3 gridSize(8192);
     keccak_kernel<<<gridSize, blockSize>>>(d_values, d_prev_hash, d_max_value, d_found_index, d_found_flag);
     cudaDeviceSynchronize();
 

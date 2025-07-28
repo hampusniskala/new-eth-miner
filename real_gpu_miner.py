@@ -35,7 +35,7 @@ contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
 stop_flag = threading.Event()
 
 BLOCK_SIZE = 512
-GRID_SIZE = 4096
+GRID_SIZE = 8192
 BATCH_SIZE = BLOCK_SIZE * GRID_SIZE
 
 def generate_candidate_values():
