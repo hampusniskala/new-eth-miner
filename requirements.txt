@@ -1,3 +1,4 @@
 web3
 pycryptodome
 numpy
+pysha3

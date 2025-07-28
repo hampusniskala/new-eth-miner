@@ -1,0 +1,15 @@
+git clone https://github.com/hampusniskala/new-eth-miner.git
+cd new-eth-miner/
+apt install nvidia-cuda-toolkit
+nvcc -arch=sm_86 -O3 --shared -Xcompiler -fPIC -o libkeccak_miner.so keccak_miner.cu
+echo 'export INFURA_URL=""' >> ~/.bashrc
+echo 'export PRIVATE_KEY=""' >> ~/.bashrc
+echo 'export WALLET_ADDRESS=""' >> ~/.bashrc
+echo 'export CONTRACT_ADDRESS="0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0"' >> ~/.bashrc
+source ~/.bashrc
+pip install -r requirements.txt
+
+tmux new -s miningsession
+python3 real_gpu_miner.py
+
+tmux attach -t miningsession
